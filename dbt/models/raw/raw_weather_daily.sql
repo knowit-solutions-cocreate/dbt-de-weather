@@ -29,7 +29,7 @@ final as (
         filename as source_file
     from source
     {% if is_incremental() %}
-    where ingested_at > (select max(ingested_at) from {{ this }})
+        where ingested_at > (select max(ingested_at) from {{ this }})
     {% endif %}
 )
 

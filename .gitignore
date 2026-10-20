@@ -20,9 +20,10 @@ dbt/dbt_packages/
 # Bad AI
 CLAUDE.md
 
-# Local Data etc (data/out/.gitkeep is tracked: dbt-duckdb can't write external models into a
-# missing folder)
+# Local Data etc (the folders are kept via .gitkeep; dbt-duckdb can't write external models into
+# a missing data/out)
 data/in/*
+!data/in/.gitkeep
 data/out/*
 !data/out/.gitkeep
 
