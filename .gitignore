@@ -1,0 +1,30 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# dbt / DuckDB build artifacts
+dbt/target/
+dbt/logs/
+dbt/.user.yml
+dbt/dbt_packages/
+*.duckdb
+*.duckdb.wal
+
+# Bad AI
+CLAUDE.md
+
+# Local Data etc (data/out/.gitkeep is tracked: dbt-duckdb can't write external models into a
+# missing folder)
+data/in/*
+data/out/*
+!data/out/.gitkeep
+
+# Notebooks
+__marimo__

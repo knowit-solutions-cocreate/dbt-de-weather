@@ -1,0 +1,6 @@
+city,city_name,county,region,latitude,longitude,population,elevation_m,is_coastal,founded_year
+goteborg,Göteborg,Västra Götalands län,Götaland,57.7089,11.9746,604000,12,true,1621
+orebro,Örebro,Örebro län,Svealand,59.2741,15.2066,160000,30,false,1265
+stockholm,Stockholm,Stockholms län,Svealand,59.3293,18.0686,985000,28,true,1252
+malmo,Malmö,Skåne län,Götaland,55.6050,13.0038,362000,12,true,1275
+uppsala,Uppsala,Uppsala län,Svealand,59.8586,17.6389,180000,20,false,1286

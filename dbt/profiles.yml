@@ -1,0 +1,8 @@
+weather:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: weather.duckdb
+      schema: main
+      external_root: data/out

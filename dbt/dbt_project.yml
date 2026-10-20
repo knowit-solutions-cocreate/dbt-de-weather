@@ -1,0 +1,27 @@
+name: weather
+version: "1.0"
+profile: weather
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+
+# Paths are relative to the repo root: run dbt from there with --project-dir dbt --profiles-dir dbt.
+vars:
+  weather_in_glob: "data/in/*/*.parquet"
+
+models:
+  weather:
+    raw:
+      +schema: raw
+    staging:
+      +schema: staging
+      +materialized: view
+    prod:
+      +schema: prod
+      # Rebuilt in full every run and written to <external_root>/<model>.parquet (see profiles.yml).
+      +materialized: external
+
+seeds:
+  weather:
+    +schema: raw

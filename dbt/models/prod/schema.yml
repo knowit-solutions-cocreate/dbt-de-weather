@@ -1,0 +1,218 @@
+models:
+  - name: fct_weather_monthly
+    description: Weather per city per calendar month, joined with city attributes. Rebuilt every run and written to data/out.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [city, month_start]
+      # Row-level consistency between columns
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "days_observed <= days_in_month"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "min_temp_c <= avg_temp_c and avg_temp_c <= max_temp_c"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "precipitation_mm >= 0 and rain_mm >= 0 and snowfall_cm >= 0"
+    columns:
+      - name: id
+        description: Surrogate key of (city, month_start).
+        data_tests: [unique, not_null]
+      - name: city_id
+        description: References stg_cities.id.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_cities')
+                field: id
+      - name: month_start
+        data_tests: [not_null]
+      - name: is_complete_month
+        description: False for the current month and any month with missing days.
+
+  - name: fct_weather_yearly
+    description: Weather per city per year, joined with city attributes. Rebuilt every run and written to data/out.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [city, year]
+      # Row-level consistency between columns
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "days_observed <= days_in_year"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "min_temp_c <= avg_temp_c and avg_temp_c <= max_temp_c"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "precipitation_mm >= 0 and rain_mm >= 0 and snowfall_cm >= 0"
+    columns:
+      - name: id
+        description: Surrogate key of (city, year).
+        data_tests: [unique, not_null]
+      - name: city_id
+        description: References stg_cities.id.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_cities')
+                field: id
+      - name: year
+        data_tests: [not_null]
+      - name: is_complete_year
+        description: False for the current year and any year with missing days.
+
+unit_tests:
+  # --- fct_weather_monthly -------------------------------------------------------------------
+
+  - name: monthly_aggregates_days_into_one_row
+    description: Averages, extremes and totals over the days of a (partial) month.
+    model: fct_weather_monthly
+    given:
+      - input: ref('stg_weather_daily')
+        rows:
+          - {city_id: c1, city: goteborg, date: 2025-01-01, month_start: 2025-01-01, year: 2025, temp_mean_c: 1.0, temp_max_c: 4.0, temp_min_c: -2.0, precipitation_mm: 2.0, rain_mm: 1.5, snowfall_cm: 0.5, wind_max_kmh: 20.0, sunshine_hours: 2.0}
+          - {city_id: c1, city: goteborg, date: 2025-01-02, month_start: 2025-01-01, year: 2025, temp_mean_c: 3.0, temp_max_c: 6.0, temp_min_c: 0.0, precipitation_mm: 0.0, rain_mm: 0.0, snowfall_cm: 0.0, wind_max_kmh: 35.0, sunshine_hours: 5.0}
+          - {city_id: c1, city: goteborg, date: 2025-01-03, month_start: 2025-01-01, year: 2025, temp_mean_c: 5.0, temp_max_c: 8.0, temp_min_c: 1.0, precipitation_mm: 4.0, rain_mm: 4.0, snowfall_cm: 0.0, wind_max_kmh: 10.0, sunshine_hours: 1.0}
+      - input: ref('stg_cities')
+        rows:
+          - {id: c1, city: goteborg, city_name: Göteborg}
+    expect:
+      rows:
+        - {city_id: c1, city_name: Göteborg, year: 2025, month_start: 2025-01-01, days_observed: 3, days_in_month: 31, is_complete_month: false, avg_temp_c: 3.0, max_temp_c: 8.0, min_temp_c: -2.0, precipitation_mm: 6.0, rain_mm: 5.5, snowfall_cm: 0.5, wet_days: 2, max_wind_kmh: 35.0, sunshine_hours: 8.0}
+
+  - name: monthly_wet_day_needs_at_least_1mm
+    model: fct_weather_monthly
+    given:
+      - input: ref('stg_weather_daily')
+        rows:
+          - {city_id: c1, city: goteborg, date: 2025-01-01, month_start: 2025-01-01, year: 2025, precipitation_mm: 1.0}
+          - {city_id: c1, city: goteborg, date: 2025-01-02, month_start: 2025-01-01, year: 2025, precipitation_mm: 0.99}
+      - input: ref('stg_cities')
+        rows:
+          - {id: c1, city: goteborg}
+    expect:
+      rows:
+        - {month_start: 2025-01-01, wet_days: 1}
+
+  - name: monthly_splits_on_month_boundary
+    model: fct_weather_monthly
+    given:
+      - input: ref('stg_weather_daily')
+        rows:
+          - {city_id: c1, city: goteborg, date: 2025-01-31, month_start: 2025-01-01, year: 2025, temp_mean_c: 1.0}
+          - {city_id: c1, city: goteborg, date: 2025-02-01, month_start: 2025-02-01, year: 2025, temp_mean_c: 3.0}
+      - input: ref('stg_cities')
+        rows:
+          - {id: c1, city: goteborg}
+    expect:
+      rows:
+        - {month_start: 2025-01-01, days_observed: 1, days_in_month: 31, avg_temp_c: 1.0}
+        - {month_start: 2025-02-01, days_observed: 1, days_in_month: 28, avg_temp_c: 3.0}
+
+  - name: monthly_full_leap_february_is_complete
+    model: fct_weather_monthly
+    given:
+      - input: ref('stg_weather_daily')
+        format: sql
+        rows: |
+          select
+              'x' as id, 'c1' as city_id, 'goteborg' as city,
+              d::date as date, date '2024-02-01' as month_start, 2024 as year,
+              1.0 as temp_max_c, 0.0 as temp_min_c, 0.5 as temp_mean_c,
+              0.0 as precipitation_mm, 0.0 as rain_mm, 0.0 as snowfall_cm,
+              5.0 as wind_max_kmh, 1.0 as sunshine_hours,
+              now()::timestamptz as ingested_at
+          from range(date '2024-02-01', date '2024-03-01', interval 1 day) as t(d)
+      - input: ref('stg_cities')
+        rows:
+          - {id: c1, city: goteborg}
+    expect:
+      rows:
+        - {month_start: 2024-02-01, days_observed: 29, days_in_month: 29, is_complete_month: true}
+
+  - name: monthly_missing_values_are_ignored_but_day_is_counted
+    description: Documents current behaviour - a day without readings still counts as observed.
+    model: fct_weather_monthly
+    given:
+      - input: ref('stg_weather_daily')
+        rows:
+          - {city_id: c1, city: goteborg, date: 2025-01-01, month_start: 2025-01-01, year: 2025, temp_mean_c: null, precipitation_mm: null}
+          - {city_id: c1, city: goteborg, date: 2025-01-02, month_start: 2025-01-01, year: 2025, temp_mean_c: 4.0, precipitation_mm: 2.0}
+      - input: ref('stg_cities')
+        rows:
+          - {id: c1, city: goteborg}
+    expect:
+      rows:
+        - {month_start: 2025-01-01, days_observed: 2, avg_temp_c: 4.0, precipitation_mm: 2.0}
+
+  - name: monthly_drops_city_missing_from_seed
+    description: Documents current behaviour - weather for a city not in the seed is silently dropped.
+    model: fct_weather_monthly
+    given:
+      - input: ref('stg_weather_daily')
+        rows:
+          - {city_id: c2, city: kiruna, date: 2025-01-01, month_start: 2025-01-01, year: 2025, temp_mean_c: -15.0}
+      - input: ref('stg_cities')
+        rows:
+          - {id: c1, city: goteborg}
+    expect:
+      rows: []
+
+  # --- fct_weather_yearly --------------------------------------------------------------------
+
+  - name: yearly_average_is_over_days_not_months
+    description: Jan has 1 day at 10, Feb 3 days at 0. Average of days is 2.5; average of monthly averages would be 5.0.
+    model: fct_weather_yearly
+    given:
+      - input: ref('stg_weather_daily')
+        rows:
+          - {city_id: c1, city: goteborg, date: 2025-01-15, month_start: 2025-01-01, year: 2025, temp_mean_c: 10.0}
+          - {city_id: c1, city: goteborg, date: 2025-02-01, month_start: 2025-02-01, year: 2025, temp_mean_c: 0.0}
+          - {city_id: c1, city: goteborg, date: 2025-02-02, month_start: 2025-02-01, year: 2025, temp_mean_c: 0.0}
+          - {city_id: c1, city: goteborg, date: 2025-02-03, month_start: 2025-02-01, year: 2025, temp_mean_c: 0.0}
+      - input: ref('stg_cities')
+        rows:
+          - {id: c1, city: goteborg, city_name: Göteborg}
+    expect:
+      rows:
+        - {city_id: c1, city_name: Göteborg, year: 2025, months_observed: 2, days_observed: 4, avg_temp_c: 2.5}
+
+  - name: yearly_days_in_year_handles_leap_years
+    model: fct_weather_yearly
+    given:
+      - input: ref('stg_weather_daily')
+        rows:
+          - {city_id: c1, city: goteborg, date: 2024-06-01, month_start: 2024-06-01, year: 2024}
+          - {city_id: c1, city: goteborg, date: 2025-06-01, month_start: 2025-06-01, year: 2025}
+      - input: ref('stg_cities')
+        rows:
+          - {id: c1, city: goteborg}
+    expect:
+      rows:
+        - {year: 2024, days_in_year: 366, is_complete_year: false}
+        - {year: 2025, days_in_year: 365, is_complete_year: false}
+
+  - name: yearly_full_year_is_complete
+    model: fct_weather_yearly
+    given:
+      - input: ref('stg_weather_daily')
+        format: sql
+        rows: |
+          select
+              'x' as id, 'c1' as city_id, 'goteborg' as city,
+              d::date as date, date_trunc('month', d)::date as month_start, 2025 as year,
+              1.0 as temp_max_c, 0.0 as temp_min_c, 0.5 as temp_mean_c,
+              0.0 as precipitation_mm, 0.0 as rain_mm, 0.0 as snowfall_cm,
+              5.0 as wind_max_kmh, 1.0 as sunshine_hours,
+              now()::timestamptz as ingested_at
+          from range(date '2025-01-01', date '2026-01-01', interval 1 day) as t(d)
+      - input: ref('stg_cities')
+        rows:
+          - {id: c1, city: goteborg}
+    expect:
+      rows:
+        - {year: 2025, months_observed: 12, days_observed: 365, days_in_year: 365, is_complete_year: true}
