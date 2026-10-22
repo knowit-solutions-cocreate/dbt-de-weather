@@ -6,10 +6,8 @@
     )
 }}
 
--- One row per city per day, as written by ingest_weather.py. Re-fetched days replace older copies.
 with source as (
-    select *
-    from read_parquet('{{ var("weather_in_glob") }}', filename = true)
+    select * from {{ source('ingest', 'weather_daily_files') }}
 ),
 
 final as (

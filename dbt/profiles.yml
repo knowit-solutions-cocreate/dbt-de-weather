@@ -3,6 +3,7 @@ weather:
   outputs:
     dev:
       type: duckdb
-      path: weather.duckdb
+      # Relative to dbt/, which is where dbt runs (see Makefile; Dagster runs it there too).
+      path: ../weather.duckdb
       schema: main
-      external_root: data/out
+      external_root: ../data/out

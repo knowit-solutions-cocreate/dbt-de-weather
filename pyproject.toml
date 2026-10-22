@@ -11,13 +11,19 @@ dependencies = [
     "altair>=6.3.0",
     "duckdb>=1.5.6",
     "marimo>=0.25.2",
-    "pyarrow>=26.0.0"
+    "pyarrow>=26.0.0",
+    "dagster>=1.13.26",
+    "dagster-dbt>=0.29.26",
+    "dagster-webserver>=1.13.26",
 ]
 
 [dependency-groups]
 dev = [
     "ruff>=0.17.1",
 ]
+
+[tool.dagster]
+module_name = "orchestrator.defs"
 
 [tool.ruff]
 line-length = 100

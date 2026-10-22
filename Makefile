@@ -1,33 +1,28 @@
-DBT := uv run dbt
-DBT_FLAGS := --project-dir dbt --profiles-dir dbt
-
-# make ingest                        -> all cities, current year up to today
-# make ingest YEAR=2025              -> all cities, all of 2025
-# make ingest YEAR=2026 MONTH=10 CITY=orebro
-YEAR ?= $(shell date +%Y)
-MONTH ?=
-CITY ?=
+# dbt runs from dbt/, where its paths (../weather.duckdb, ../data) and profiles.yml are relative to.
+DBT := cd dbt && uv run dbt
 
 # Extra dbt flags, e.g. make transform ARGS="--full-refresh" or ARGS="-s fct_weather_monthly"
 ARGS ?=
 
-.PHONY: help ingest transform viz
+.PHONY: help orchestrate transform viz
 
 help:
-	@echo "make ingest     Fetch weather into data/in   (YEAR=, MONTH=, CITY= optional)"
-	@echo "make transform  dbt build: raw -> staging -> prod, writes data/out   (ARGS= optional)"
-	@echo "make viz        Run the marimo notebook as an app"
-
-ingest:
-	uv run ingest_weather.py $(YEAR) $(MONTH) $(if $(CITY),--city $(CITY))
+	@echo "make orchestrate  Dagster UI: ingestion (city x month partitions), dbt and the report"
+	@echo "make transform    dbt build: raw -> staging -> prod, writes data/out   (ARGS= optional)"
+	@echo "make viz          Run the marimo notebook as an app"
 
 transform: dbt/dbt_packages
-	$(DBT) build $(DBT_FLAGS) $(ARGS)
+	$(DBT) build $(ARGS)
 
 viz:
 	uv run marimo run notebooks/weather.py
 
+# Dagster UI at http://localhost:3000. DAGSTER_HOME keeps run and partition history between restarts.
+orchestrate: dbt/dbt_packages
+	mkdir -p .dagster
+	DAGSTER_HOME=$(CURDIR)/.dagster uv run dagster dev
+
 # Install dbt packages (dbt_utils) once, and again whenever packages.yml changes.
 dbt/dbt_packages: dbt/packages.yml
-	$(DBT) deps $(DBT_FLAGS)
+	$(DBT) deps
 	@touch $@

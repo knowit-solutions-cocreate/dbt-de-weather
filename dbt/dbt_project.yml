@@ -6,12 +6,14 @@ model-paths: ["models"]
 seed-paths: ["seeds"]
 macro-paths: ["macros"]
 
-# Paths are relative to the repo root: run dbt from there with --project-dir dbt --profiles-dir dbt.
-vars:
-  weather_in_glob: "data/in/*/*.parquet"
+# Paths are relative to this folder: run dbt from here (the Makefile and Dagster both do).
 
+# +meta.dagster.group is the asset group in Dagster (orchestrator/), same as the ingestion asset.
 models:
   weather:
+    +meta:
+      dagster:
+        group: weather
     raw:
       +schema: raw
     staging:
@@ -25,3 +27,6 @@ models:
 seeds:
   weather:
     +schema: raw
+    +meta:
+      dagster:
+        group: weather
