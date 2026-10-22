@@ -35,6 +35,8 @@ final as (
         cities.city_name,
         cities.county,
         cities.region,
+        cities.latitude,
+        cities.longitude,
         cities.population,
         cities.elevation_m,
         cities.is_coastal,

@@ -132,9 +132,9 @@ def _(INK_ON_COLOR, alt, city_scale, mo, style, sunshine, year):
             alt.Tooltip("share_pct:Q", title="Share (%)", format=".1f"),
         ],
     )
-    _labels = _base.mark_text(
-        radius=125, fontSize=13, fontWeight=600, color=INK_ON_COLOR
-    ).encode(text=alt.Text("share_pct:Q", format=".1f"))
+    _labels = _base.mark_text(radius=125, fontSize=13, fontWeight=600, color=INK_ON_COLOR).encode(
+        text=alt.Text("share_pct:Q", format=".1f")
+    )
 
     sunshine_chart = style((_ring + _labels).properties(width=360, height=360))
 
@@ -150,6 +150,105 @@ def _(INK_ON_COLOR, alt, city_scale, mo, style, sunshine, year):
             ),
             mo.md(f"Share of {_total:,} total sunshine hours, in %{_partial}"),
             mo.ui.tabs({"Chart": sunshine_chart, "Table": mo.ui.table(sunshine, selection=None)}),
+        ]
+    )
+    return
+
+
+@app.cell
+def _(con, year):
+    temp_range = con.sql(
+        """
+        select
+            city_name,
+            round(latitude, 1) as latitude,
+            if(is_coastal, 'Coastal', 'Inland') as setting,
+            round(min_temp_c, 1) as min_temp_c,
+            round(avg_temp_c, 1) as avg_temp_c,
+            round(max_temp_c, 1) as max_temp_c,
+            round(max_temp_c - min_temp_c, 1) as range_c,
+            days_observed,
+            is_complete_year
+        from yearly
+        where year = $year
+        order by latitude
+        """,
+        params={"year": int(year.value)},
+    ).pl()
+    return (temp_range,)
+
+
+@app.cell
+def _(MUTED, alt, city_scale, mo, style, temp_range, year):
+    # Weather meets city attributes: rows run south to north (latitude), coastal cities get filled
+    # end points and inland cities hollow ones.
+    _partial = (
+        ""
+        if temp_range["is_complete_year"].all()
+        else f" Partial year, {temp_range['days_observed'].max()} days so far."
+    )
+
+    _y = alt.Y(
+        "city_name:N",
+        title=None,
+        sort=alt.EncodingSortField("latitude", order="ascending"),
+        axis=alt.Axis(grid=False),
+    )
+    _x = alt.X("min_temp_c:Q", title="°C", axis=alt.Axis(tickCount=8))
+    _color = alt.Color("city_name:N", scale=city_scale, legend=None)
+    _tooltip = [
+        alt.Tooltip("city_name:N", title="City"),
+        alt.Tooltip("setting:N", title="Setting"),
+        alt.Tooltip("latitude:Q", title="Latitude (°N)", format=".1f"),
+        alt.Tooltip("min_temp_c:Q", title="Coldest day (°C)", format=".1f"),
+        alt.Tooltip("avg_temp_c:Q", title="Average (°C)", format=".1f"),
+        alt.Tooltip("max_temp_c:Q", title="Warmest day (°C)", format=".1f"),
+        alt.Tooltip("range_c:Q", title="Range (°C)", format=".1f"),
+    ]
+    _base = alt.Chart(temp_range).encode(y=_y, tooltip=_tooltip)
+
+    _freezing = (
+        alt.Chart(alt.Data(values=[{"zero": 0}]))
+        .mark_rule(color=MUTED, strokeWidth=1, strokeDash=[3, 3], opacity=0.6)
+        .encode(x="zero:Q")
+    )
+    _bar = _base.mark_rule(strokeWidth=2, strokeCap="round").encode(
+        x=_x, x2="max_temp_c:Q", color=_color
+    )
+    _avg = _base.mark_tick(color=MUTED, thickness=3, size=16).encode(x="avg_temp_c:Q")
+    _fill = alt.condition(
+        "datum.setting === 'Coastal'",
+        alt.Color("city_name:N", scale=city_scale, legend=None),
+        alt.value("transparent"),
+    )
+    _ends = [
+        _base.mark_point(size=110, strokeWidth=2, opacity=1).encode(
+            x=f"{_field}:Q", stroke=_color, fill=_fill
+        )
+        for _field in ["min_temp_c", "max_temp_c"]
+    ]
+    _labels = [
+        _base.mark_text(align=_align, dx=_dx, fontSize=12, color=MUTED).encode(
+            x=f"{_field}:Q", text=alt.Text(f"{_field}:Q", format=".1f")
+        )
+        for _field, _align, _dx in [("min_temp_c", "right", -10), ("max_temp_c", "left", 10)]
+    ]
+
+    temp_range_chart = style(
+        alt.layer(_freezing, _bar, _avg, *_ends, *_labels).properties(width="container", height=240)
+    )
+
+    mo.vstack(
+        [
+            mo.md(f"## Temperature range by city, {year.value}"),
+            mo.md(
+                "Coldest to warmest day of the year; the grey tick is the average. Cities run "
+                "south to north (latitude); filled ends are coastal cities, hollow ends inland "
+                f"ones.{_partial}"
+            ),
+            mo.ui.tabs(
+                {"Chart": temp_range_chart, "Table": mo.ui.table(temp_range, selection=None)}
+            ),
         ]
     )
     return

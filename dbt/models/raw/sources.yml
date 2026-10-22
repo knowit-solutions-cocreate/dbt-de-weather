@@ -1,0 +1,8 @@
+sources:
+  - name: ingest
+    description: Files written by the Dagster asset ingest/weather_daily_files (orchestrator/).
+    tables:
+      - name: weather_daily_files
+        description: One parquet file per city per month, data/in/<city>/<YYYY-MM>.parquet.
+        config:
+          external_location: "read_parquet('../data/in/*/*.parquet', filename = true)"

@@ -17,8 +17,12 @@ dbt/dbt_packages/
 *.duckdb
 *.duckdb.wal
 
-# Bad AI
-CLAUDE.md
+# Dagster run history (DAGSTER_HOME, see Makefile), and the lock it takes while running dbt deps
+.dagster/
+*.concurrent-update-lock
+
+# macOS
+.DS_Store
 
 # Local Data etc (the folders are kept via .gitkeep; dbt-duckdb can't write external models into
 # a missing data/out)
@@ -26,6 +30,8 @@ data/in/*
 !data/in/.gitkeep
 data/out/*
 !data/out/.gitkeep
+data/report/*
+!data/report/.gitkeep
 
 # Notebooks
 __marimo__

@@ -1,5 +1,8 @@
 -- The monthly rows of a city and year must add up to that city's yearly row.
 -- Returns the (city, year) pairs that disagree; any row fails the test.
+-- The test reads two models; meta.dagster.ref makes it an asset check on fct_weather_monthly.
+{{ config(meta={'dagster': {'ref': {'name': 'fct_weather_monthly'}}}) }}
+
 with monthly as (
     select
         city_id,

@@ -9,6 +9,7 @@ macro-paths: ["macros"]
 # Paths (data/in, data/out) are relative to the repo root: run dbt from there with
 # --project-dir dbt --profiles-dir dbt.
 
+# +meta.dagster.group is the asset group in Dagster (orchestrator/), same as the ingestion asset.
 models:
   weather:
     staging:
