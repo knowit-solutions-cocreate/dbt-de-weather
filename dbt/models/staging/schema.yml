@@ -1,9 +1,13 @@
 models:
   - name: stg_weather_daily
-    description: Renamed and unit-converted daily weather (sunshine in hours).
+    description: Daily weather per city from data/in, renamed and unit-converted (sunshine in hours).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [city, date]
     columns:
       - name: id
-        description: Surrogate key of (city, date), carried over from raw_weather_daily.
+        description: Surrogate key of (city, date).
         data_tests: [unique, not_null]
       - name: city_id
         description: References stg_cities.id.
@@ -13,6 +17,8 @@ models:
               arguments:
                 to: ref('stg_cities')
                 field: id
+      - name: date
+        data_tests: [not_null]
 
   - name: stg_cities
     description: City attributes from the cities seed, the single entry point for city data in prod models.

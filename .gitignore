@@ -29,3 +29,7 @@ data/out/*
 
 # Notebooks
 __marimo__
+
+# Dagster leftovers
+.dagster/
+orchestrator/

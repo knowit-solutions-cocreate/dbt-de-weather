@@ -6,14 +6,11 @@ model-paths: ["models"]
 seed-paths: ["seeds"]
 macro-paths: ["macros"]
 
-# Paths are relative to the repo root: run dbt from there with --project-dir dbt --profiles-dir dbt.
-vars:
-  weather_in_glob: "data/in/*/*.parquet"
+# Paths (data/in, data/out) are relative to the repo root: run dbt from there with
+# --project-dir dbt --profiles-dir dbt.
 
 models:
   weather:
-    raw:
-      +schema: raw
     staging:
       +schema: staging
       +materialized: view
@@ -24,4 +21,4 @@ models:
 
 seeds:
   weather:
-    +schema: raw
+    +schema: seeds

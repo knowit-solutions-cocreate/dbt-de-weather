@@ -1,12 +1,33 @@
 # dbt-de-weather
 
 Daily weather for five Swedish cities (Göteborg, Örebro, Stockholm, Malmö, Uppsala), aggregated to
-monthly and yearly figures and visualised in a notebook.
+monthly and yearly figures.
 
-```
-Open-Meteo API ──▶ data/in/*.parquet ──▶ DuckDB (raw → staging → prod) ──▶ data/out/*.parquet ──▶ notebook
-     ingest (Python)                         transform (dbt)                                  viz (marimo)
-```
+## Overview
+
+![Pipeline overview](overview.png)
+
+**Why save the API data as files?**
+
+dbt can be re-run without calling the API again. There's one file per city and month, so fetching
+a month again just overwrites that file, and the DuckDB database can always be rebuilt from `data/in`.
+
+**Why are the staging models views?**
+
+Staging only renames columns and converts units, so there's no need to store a copy. A view always
+reads the current files in `data/in`.
+
+**How is SQL executed?**
+
+Two tools are used:
+
+- **dbt**: turns SQL files into tables and views, in the right order
+  - models: one `select` per file, in `staging/` and `prod/`
+  - tests: checks on the data (unique ids, not null, monthly vs yearly totals)
+- **DuckDB**: an analytical database that runs in-process (no server)
+
+Since DuckDB reads and writes parquet natively, staging can query `data/in` directly and the prod
+models can be written straight to `data/out` as parquet.
 
 ## Tools
 
@@ -27,6 +48,7 @@ git clone <repo-url> && cd dbt-de-weather
 make ingest      # 1. fetch this year's weather up to today  -> data/in/
 make transform   # 2. build and test the dbt models          -> weather.duckdb, data/out/
 make viz         # 3. open the notebook as an app             -> http://localhost:2718
+make docs        # optional: browse the dbt docs and lineage  -> http://localhost:8080
 ```
 
 `make transform` installs the dbt packages (`dbt_utils`) the first time it runs.
@@ -42,8 +64,8 @@ make transform ARGS="--full-refresh"     # rebuild everything, e.g. after changi
 make transform ARGS="-s fct_weather_monthly"
 ```
 
-Re-running `make ingest` for a month overwrites its files; the next `make transform` picks up only
-the new rows. To edit the notebook instead of viewing it: `uv run marimo edit notebooks/weather.py`.
+Re-running `make ingest` for a month overwrites its files; the next `make transform` reads them
+directly. To edit the notebook instead of viewing it: `uv run marimo edit notebooks/weather.py`.
 
 ## Repository structure
 
@@ -52,11 +74,10 @@ the new rows. To edit the notebook instead of viewing it: `uv run marimo edit no
 ├── dbt/                         # dbt project (run from the repo root, see Makefile)
 │   ├── seeds/cities.csv         # cities with coordinates and attributes; also read by ingestion
 │   ├── models/
-│   │   ├── raw/                 # raw_weather_daily: incremental load of data/in
-│   │   ├── staging/             # stg_weather_daily, stg_cities: renaming, unit conversion, ids
+│   │   ├── staging/             # stg_weather_daily (reads data/in), stg_cities: renaming, unit conversion, ids
 │   │   └── prod/                # fct_weather_monthly, fct_weather_yearly -> data/out/*.parquet
 │   ├── tests/                   # custom data tests (monthly vs yearly reconciliation)
-│   ├── macros/                  # schema naming (raw / staging / prod)
+│   ├── macros/                  # schema naming (seeds / staging / prod)
 │   ├── profiles.yml             # DuckDB connection: ./weather.duckdb
 │   └── packages.yml             # dbt_utils
 ├── notebooks/weather.py         # marimo notebook
@@ -74,7 +95,7 @@ also runs unit tests on the prod models before building them.
 
 | Schema | Model | Grain |
 |---|---|---|
-| raw | `cities` (seed), `raw_weather_daily` | city / city × day |
+| seeds | `cities` | city |
 | staging | `stg_cities`, `stg_weather_daily` | city / city × day |
 | prod | `fct_weather_monthly` | city × month |
 | prod | `fct_weather_yearly` | city × year |

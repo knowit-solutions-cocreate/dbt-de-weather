@@ -1,10 +1,10 @@
 with source as (
-    select * from {{ ref('raw_weather_daily') }}
+    select * from read_parquet({{ source('weather', 'weather_daily') }}, filename = true)
 ),
 
 final as (
     select
-        id,
+        {{ dbt_utils.generate_surrogate_key(['city', 'date']) }} as id,
         {{ dbt_utils.generate_surrogate_key(['city']) }} as city_id,
         city,
         date,
@@ -18,7 +18,8 @@ final as (
         snowfall_sum as snowfall_cm,
         wind_speed_10m_max as wind_max_kmh,
         sunshine_duration / 3600 as sunshine_hours,
-        ingested_at
+        ingested_at,
+        filename as source_file
     from source
 )
 
