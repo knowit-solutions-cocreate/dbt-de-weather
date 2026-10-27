@@ -52,8 +52,8 @@ make docs        # optional: browse the dbt docs and lineage  -> http://localhos
 ```
 
 In the Dagster UI, open the `weather` asset group, select all assets and click **Materialize**,
-choosing the partitions to fetch (e.g. all cities, 2025-01 up to the current month). That one run
-fetches the weather into `data/in/` (one partition per city and month, from 2024), builds and tests
+choosing the months to fetch (e.g. 2025-01 up to the current month). That one run
+fetches the weather into `data/in/` (one partition per month from 2024, each fetching every city), builds and tests
 the dbt models (`weather.duckdb`, `data/out/`) and exports the notebook as a static HTML report to
 `data/report/weather.html` (latest year, no code). The `weather_monthly` job does the same for last
 month; its schedule (the 2nd of each month) is off until you switch it on.
@@ -80,7 +80,7 @@ partition overwrites its file; the next dbt build picks up only the new rows. To
 │   │   ├── staging/             # stg_weather_daily (reads data/in), stg_cities: renaming, unit conversion, ids
 │   │   └── prod/                # fct_weather_monthly, fct_weather_yearly -> data/out/*.parquet
 │   ├── tests/                   # custom data tests (monthly vs yearly reconciliation)
-│   ├── macros/                  # schema naming (raw / staging / prod)
+│   ├── macros/                  # schema naming (seeds / staging / prod)
 │   ├── profiles.yml             # DuckDB connection: ../weather.duckdb
 │   └── packages.yml             # dbt_utils
 ├── notebooks/weather.py         # marimo notebook
@@ -104,5 +104,5 @@ also runs unit tests on the prod models before building them.
 | prod | `fct_weather_monthly` | city × month |
 | prod | `fct_weather_yearly` | city × year |
 
-To add a city, add a row (with latitude and longitude) to `dbt/seeds/cities.csv`, materialize its
-partitions in Dagster, run `make transform ARGS="--full-refresh"`, and give it a colour in `CITY_COLORS` in the notebook.
+To add a city, add a row (with latitude and longitude) to `dbt/seeds/cities.csv`, re-materialize
+the months in Dagster, run `make transform ARGS="--full-refresh"`, and give it a colour in `CITY_COLORS` in the notebook.

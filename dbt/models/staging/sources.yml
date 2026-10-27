@@ -1,9 +1,9 @@
 sources:
-  - name: weather
-    description: Parquet files written by ingest_weather.py (path relative to the repo root).
+  - name: ingest
+    description: Files written by the Dagster asset ingest/weather_daily_files (orchestrator/); the path is relative to dbt/, where dbt runs.
     tables:
-      - name: weather_daily
+      - name: weather_daily_files
         description: Daily Open-Meteo weather, one file per city per month in data/in/<city>/<YYYY-MM>.parquet.
         config:
           meta:
-            external_location: "data/in/*/*.parquet"
+            external_location: "../data/in/*/*.parquet"

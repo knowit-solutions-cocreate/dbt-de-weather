@@ -4,12 +4,12 @@ from datetime import timedelta
 
 import dagster as dg
 
-from orchestrator.partitions import city_month
+from orchestrator.partitions import monthly
 
 weather_monthly = dg.define_asset_job(
     "weather_monthly",
     selection=dg.AssetSelection.groups("weather"),
-    partitions_def=city_month,
+    partitions_def=monthly,
 )
 
 
@@ -22,14 +22,4 @@ weather_monthly = dg.define_asset_job(
 def weather_monthly_schedule(context: dg.ScheduleEvaluationContext) -> dg.RunRequest:
     last_month = context.scheduled_execution_time.replace(day=1) - timedelta(days=1)
     month = last_month.strftime("%Y-%m")
-    cities = city_month.get_partitions_def_for_dimension("city").get_partition_keys()
-    # A range over both dimensions: every city, one month, in a single run
-    first = dg.MultiPartitionKey({"city": cities[0], "month": month})
-    last = dg.MultiPartitionKey({"city": cities[-1], "month": month})
-    return dg.RunRequest(
-        run_key=month,
-        tags={
-            "dagster/asset_partition_range_start": first,
-            "dagster/asset_partition_range_end": last,
-        },
-    )
+    return dg.RunRequest(run_key=month, partition_key=month)

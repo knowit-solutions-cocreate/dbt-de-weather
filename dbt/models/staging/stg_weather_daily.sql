@@ -1,5 +1,5 @@
 with source as (
-    select * from read_parquet({{ source('weather', 'weather_daily') }}, filename = true)
+    select * from read_parquet({{ source('ingest', 'weather_daily_files') }}, filename = true)
 ),
 
 final as (

@@ -1,4 +1,4 @@
-"""Dagster assets: the Open-Meteo ingestion, partitioned by city and month, the dbt project, and
+"""Dagster assets: the Open-Meteo ingestion, partitioned by month, the dbt project, and
 the notebook exported as an HTML report."""
 
 import subprocess
@@ -10,7 +10,7 @@ import dagster as dg
 import polars as pl
 from dagster_dbt import DbtCliResource, DbtProject, dbt_assets, get_asset_key_for_model
 
-from orchestrator.partitions import CITIES, city_month
+from orchestrator.partitions import CITIES, monthly
 from orchestrator.resources import OpenMeteoResource
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -23,22 +23,23 @@ dbt_project.prepare_if_dev()  # parses the dbt project into target/manifest.json
 
 @dg.asset(
     key=["ingest", "weather_daily_files"],
-    partitions_def=city_month,
+    partitions_def=monthly,
     io_manager_key="city_month_io_manager",
     group_name="weather",
     kinds={"python"},
     backfill_policy=dg.BackfillPolicy.single_run(),
-    description="Daily weather per city per month, fetched from the Open-Meteo archive.",
+    description="Daily weather for every city, per month, fetched from the Open-Meteo archive.",
 )
 def weather_daily_files(
     context: dg.AssetExecutionContext, open_meteo: OpenMeteoResource
 ) -> dict[str, pl.DataFrame]:
     frames = {}
     for partition_key in context.partition_keys:
-        keys = city_month.get_partition_key_from_str(partition_key).keys_by_dimension
-        city, month = keys["city"], datetime.strptime(keys["month"], "%Y-%m")
-        lat, lon = CITIES[city]
-        frames[partition_key] = open_meteo.fetch_month(city, lat, lon, month.year, month.month)
+        month = datetime.strptime(partition_key, "%Y-%m")
+        frames[partition_key] = pl.concat(
+            open_meteo.fetch_month(city, lat, lon, month.year, month.month)
+            for city, (lat, lon) in CITIES.items()
+        )
     return frames
 
 
