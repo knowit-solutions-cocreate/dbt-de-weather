@@ -14,6 +14,7 @@ dbt/target/
 dbt/logs/
 dbt/.user.yml
 dbt/dbt_packages/
+dbt/package-lock.concurrent-update-lock
 *.duckdb
 *.duckdb.wal
 
@@ -26,6 +27,10 @@ data/in/*
 !data/in/.gitkeep
 data/out/*
 !data/out/.gitkeep
+data/report/*
+!data/report/.gitkeep
+data/.DS_Store
+
 
 # Notebooks
 __marimo__
@@ -33,3 +38,6 @@ __marimo__
 # Dagster leftovers
 .dagster/
 orchestrator/
+
+# Environment vars
+.env
