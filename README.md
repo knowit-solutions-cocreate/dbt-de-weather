@@ -5,7 +5,7 @@ monthly and yearly figures.
 
 ## Overview
 
-![Pipeline overview](overview.png)
+![Pipeline overview](docs/images/overview.png)
 
 **Why save the API data as files?**
 

@@ -1,0 +1,4 @@
+/* Double the markdown text size for presenting; headings scale with it. */
+.markdown.prose {
+  font-size: 2rem;
+}

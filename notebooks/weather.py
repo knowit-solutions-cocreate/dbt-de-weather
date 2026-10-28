@@ -7,148 +7,77 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import altair as alt
-    import duckdb
     import marimo as mo
+    import polars as pl
+    from theme import city_scale, style
 
-    return alt, duckdb, mo
-
-
-@app.cell
-def _(duckdb, mo):
-    # In-memory DuckDB over the dbt outputs in data/out; weather.duckdb is never opened.
-    out_dir = mo.notebook_dir().parent / "data" / "out"
-    con = duckdb.connect(":memory:")
-    for _view in ["monthly", "yearly"]:
-        _path = out_dir / f"fct_weather_{_view}.parquet"
-        con.sql(f"create view {_view} as select * from read_parquet('{_path}')")
-    return (con,)
+    return alt, city_scale, mo, pl, style
 
 
 @app.cell
-def _(alt):
-    # Fixed colour per city, so a city keeps its colour across charts and filters. These are the
-    # dark-surface steps of the validated categorical palette: they pass on both light and dark
-    # backgrounds, which matters because marimo's "system" theme can't be detected from Python.
-    # Add a slot here when a city is added to the seed.
-    CITY_COLORS = {
-        "Göteborg": "#3987e5",
-        "Örebro": "#d95926",
-        "Stockholm": "#199e70",
-        "Malmö": "#c98500",
-        "Uppsala": "#d55181",
-    }
-    city_scale = alt.Scale(domain=list(CITY_COLORS), range=list(CITY_COLORS.values()))
-
-    # Theme-neutral chrome: transparent background, mid-grey text, translucent hairline grid.
-    # Titles live in marimo markdown, which follows the notebook theme.
-    MUTED = "#898781"
-    INK_ON_COLOR = "#0b0b0b"  # text drawn on top of a coloured mark
-
-    def style(chart):
-        return (
-            chart.configure(background="transparent", font="system-ui, sans-serif")
-            .configure_view(stroke=None)
-            .configure_axis(
-                domain=False,
-                ticks=False,
-                gridColor=MUTED,
-                gridOpacity=0.25,
-                labelColor=MUTED,
-                titleColor=MUTED,
-                labelFontSize=12,
-                titleFontSize=12,
-                titleFontWeight="normal",
-                labelPadding=6,
-            )
-            .configure_legend(
-                labelColor=MUTED,
-                titleColor=MUTED,
-                labelFontSize=12,
-                title=None,
-                symbolType="circle",
-                symbolSize=120,
-                orient="right",
-            )
-        )
-
-    return INK_ON_COLOR, MUTED, city_scale, style
+def _(mo, pl):
+    monthly = pl.read_parquet(
+        mo.notebook_dir().parent / "data" / "out" / "fct_weather_monthly.parquet"
+    )
+    return (monthly,)
 
 
 @app.cell
-def _(mo):
-    mo.md("""
+def _(mo, monthly, pl):
+    _months = monthly.select("month_start", "is_complete_month", "days_observed", "days_in_month")
+    _first, _last = _months["month_start"].min(), _months["month_start"].max()
+    _n = _months["month_start"].n_unique()
+    _partial = _months.filter(~pl.col("is_complete_month")).unique("month_start")
+    _partial_note = "".join(
+        f" · {r['month_start']:%b %Y} is partial "
+        f"({r['days_observed']} of {r['days_in_month']} days)"
+        for r in _partial.iter_rows(named=True)
+    )
+
+    mo.md(f"""
     # Weather in Swedish cities
 
-    Built from the dbt outputs `fct_weather_yearly.parquet` and `fct_weather_monthly.parquet`.
+    Covering **{_first:%b %Y} – {_last:%b %Y}** ({_n} months){_partial_note}.
+    Built from the dbt output `fct_weather_monthly.parquet`.
     """)
     return
 
 
 @app.cell
-def _(con, mo):
-    _rows = con.sql("select distinct year from yearly order by year").fetchall()
-    years = [str(y) for (y,) in _rows]
-    year = mo.ui.dropdown(options=years, value=years[-1], label="Year")
-    return (year,)
-
-
-@app.cell
-def _(con, year):
-    sunshine = con.sql(
-        """
-        select
-            city_name,
-            round(sunshine_hours) as sunshine_hours,
-            round(100 * sunshine_hours / sum(sunshine_hours) over (), 1) as share_pct,
-            days_observed,
-            is_complete_year
-        from yearly
-        where year = $year
-        order by city_name
-        """,
-        params={"year": int(year.value)},
-    ).pl()
+def _(monthly, pl):
+    sunshine = (
+        monthly.group_by("city_name")
+        .agg(pl.col("sunshine_hours").sum())
+        .with_columns(
+            pl.col("sunshine_hours").round(),
+            (100 * pl.col("sunshine_hours") / pl.col("sunshine_hours").sum())
+            .round(1)
+            .alias("share_pct"),
+        )
+        .sort("city_name")
+    )
     return (sunshine,)
 
 
 @app.cell
-def _(INK_ON_COLOR, alt, city_scale, mo, style, sunshine, year):
-    _total = int(sunshine["sunshine_hours"].sum())
-    _partial = (
-        ""
-        if sunshine["is_complete_year"].all()
-        else f" · partial year, {sunshine['days_observed'].max()} days so far"
-    )
-
+def _(alt, city_scale, mo, style, sunshine):
     _base = alt.Chart(sunshine).encode(
         theta=alt.Theta("sunshine_hours:Q", stack=True),
         order=alt.Order("city_name:N"),
     )
-    _ring = _base.mark_arc(innerRadius=90, outerRadius=160, padAngle=0.015, cornerRadius=4).encode(
+    _ring = _base.mark_arc(innerRadius=90, outerRadius=160).encode(
         color=alt.Color("city_name:N", scale=city_scale),
-        tooltip=[
-            alt.Tooltip("city_name:N", title="City"),
-            alt.Tooltip("sunshine_hours:Q", title="Sunshine (h)", format=",.0f"),
-            alt.Tooltip("share_pct:Q", title="Share (%)", format=".1f"),
-        ],
+        tooltip=["city_name:N", "sunshine_hours:Q", "share_pct:Q"],
     )
-    _labels = _base.mark_text(
-        radius=125, fontSize=13, fontWeight=600, color=INK_ON_COLOR
-    ).encode(text=alt.Text("share_pct:Q", format=".1f"))
-
+    _labels = _base.mark_text(radius=125, fontWeight=600).encode(
+        text=alt.Text("share_pct:Q", format=".1f")
+    )
     sunshine_chart = style((_ring + _labels).properties(width=360, height=360))
 
     mo.vstack(
         [
-            mo.hstack(
-                [
-                    mo.md(f"## Sunshine by city, {year.value}"),
-                    year,
-                ],
-                justify="space-between",
-                align="center",
-            ),
-            mo.md(f"Share of {_total:,} total sunshine hours, in %{_partial}"),
+            mo.md("## ☀️ Sunshine by city"),
+            mo.md(f"Share of {int(sunshine['sunshine_hours'].sum()):,} total sunshine hours, in %"),
             mo.ui.tabs({"Chart": sunshine_chart, "Table": mo.ui.table(sunshine, selection=None)}),
         ]
     )
@@ -156,77 +85,81 @@ def _(INK_ON_COLOR, alt, city_scale, mo, style, sunshine, year):
 
 
 @app.cell
-def _(con):
-    rain = con.sql(
-        """
-        select
-            city_name,
-            month_start,
-            round(rain_mm / days_observed, 2) as avg_daily_rain_mm,
-            round(rain_mm, 1) as rain_mm,
-            days_observed,
-            is_complete_month
-        from monthly
-        order by city_name, month_start
-        """
-    ).pl()
-    return (rain,)
+def _(monthly, pl):
+    precip = monthly.select(
+        "city_name",
+        "month_start",
+        (pl.col("precipitation_mm") / pl.col("days_observed")).round(2).alias("avg_daily_mm"),
+        pl.col("precipitation_mm").round(1),
+        "days_observed",
+    ).sort("city_name", "month_start")
+    return (precip,)
 
 
 @app.cell
-def _(MUTED, alt, city_scale, mo, rain, style):
-    # Click a city in the legend to highlight it; hover anywhere to see that month's values.
-    _city = alt.selection_point(fields=["city_name"], bind="legend")
-    _hover = alt.selection_point(
-        fields=["month_start"], nearest=True, on="pointerover", empty=False, clear="pointerout"
-    )
-
-    _x = alt.X(
-        "month_start:T",
-        title=None,
-        axis=alt.Axis(format="%b %Y", tickCount={"interval": "month", "step": 3}, grid=False),
-    )
-    _y = alt.Y("avg_daily_rain_mm:Q", title="mm per day", axis=alt.Axis(tickCount=5))
-    _color = alt.Color("city_name:N", scale=city_scale)
-    _base = alt.Chart(rain).encode(x=_x)
-
-    _lines = (
-        _base.mark_line(strokeWidth=2, strokeCap="round", strokeJoin="round")
+def _(alt, city_scale, mo, precip, style):
+    _chart = (
+        alt.Chart(precip)
+        .mark_line(point=True)
         .encode(
-            y=_y,
-            color=_color,
-            opacity=alt.condition(_city, alt.value(1), alt.value(0.15)),
+            x=alt.X("month_start:T", title=None, axis=alt.Axis(format="%b %Y", grid=False)),
+            y=alt.Y("avg_daily_mm:Q", title="mm per day"),
+            color=alt.Color("city_name:N", scale=city_scale),
+            tooltip=[
+                "city_name:N",
+                alt.Tooltip("month_start:T", format="%B %Y"),
+                "avg_daily_mm:Q",
+                "precipitation_mm:Q",
+                "days_observed:Q",
+            ],
         )
-        .add_params(_city)
     )
-    _rule = (
-        _base.mark_rule(color=MUTED, strokeWidth=1)
-        .encode(opacity=alt.condition(_hover, alt.value(0.6), alt.value(0)))
-        .add_params(_hover)
-    )
-    _points = _base.mark_point(filled=True, size=70).encode(
-        y=_y,
-        color=_color,
-        opacity=alt.condition(_hover & _city, alt.value(1), alt.value(0)),
-        tooltip=[
-            alt.Tooltip("city_name:N", title="City"),
-            alt.Tooltip("month_start:T", title="Month", format="%B %Y"),
-            alt.Tooltip("avg_daily_rain_mm:Q", title="Avg daily rain (mm)", format=".2f"),
-            alt.Tooltip("rain_mm:Q", title="Month total (mm)", format=".1f"),
-            alt.Tooltip("days_observed:Q", title="Days observed"),
-        ],
-    )
-
-    rain_chart = style((_lines + _rule + _points).properties(width="container", height=320))
+    precip_chart = style(_chart.properties(width="container", height=320))
 
     mo.vstack(
         [
-            mo.md("## Average daily rain per month"),
+            mo.md("## 🌧️ Average daily precipitation per month"),
             mo.md(
-                "Monthly rain divided by days observed, so the current partial month compares "
-                "fairly. Click a city in the legend to highlight it."
+                "Rain and snow (as water), divided by days observed so a partial month "
+                "compares fairly."
             ),
-            mo.ui.tabs({"Chart": rain_chart, "Table": mo.ui.table(rain, selection=None)}),
+            mo.ui.tabs({"Chart": precip_chart, "Table": mo.ui.table(precip, selection=None)}),
+        ]
+    )
+    return
+
+
+@app.cell
+def _(monthly, pl):
+    snow = (
+        monthly.group_by("city_name", "year")
+        .agg(pl.col("snowfall_cm").sum().round(1), pl.col("days_observed").sum())
+        .sort("city_name", "year")
+    )
+    return (snow,)
+
+
+@app.cell
+def _(alt, mo, snow, style):
+    _chart = (
+        alt.Chart(snow)
+        .mark_bar()
+        .encode(
+            x=alt.X("city_name:N", title=None, axis=alt.Axis(labelAngle=0)),
+            xOffset="year:O",
+            y=alt.Y("snowfall_cm:Q", title="cm"),
+            color=alt.Color("year:O"),
+            tooltip=["city_name:N", "year:O", "snowfall_cm:Q", "days_observed:Q"],
+        )
+        .properties(width="container", height=280)
+    )
+    snow_chart = style(_chart)
+
+    mo.vstack(
+        [
+            mo.md("## ❄️ Annual snowfall per city"),
+            mo.md("Total snowfall per year. The latest year is partial, see the coverage above."),
+            mo.ui.tabs({"Chart": snow_chart, "Table": mo.ui.table(snow, selection=None)}),
         ]
     )
     return

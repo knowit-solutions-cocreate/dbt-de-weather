@@ -41,3 +41,7 @@ orchestrator/
 
 # Environment vars
 .env
+
+
+# Random shit
+.DS_Store
