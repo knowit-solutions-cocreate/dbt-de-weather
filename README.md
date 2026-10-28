@@ -1,4 +1,4 @@
-# dbt-de-weather
+# Weather Analytics Pipeline
 
 Daily weather for five Swedish cities (Göteborg, Örebro, Stockholm, Malmö, Uppsala), aggregated to
 monthly and yearly figures.
@@ -6,6 +6,9 @@ monthly and yearly figures.
 ## Overview
 
 ![Pipeline overview](overview.png)
+
+
+
 
 **Why save the API data as files?**
 
@@ -81,7 +84,7 @@ partition overwrites its file; the next dbt build picks up only the new rows. To
 │   │   └── prod/                # fct_weather_monthly, fct_weather_yearly -> data/out/*.parquet
 │   ├── tests/                   # custom data tests (monthly vs yearly reconciliation)
 │   ├── macros/                  # schema naming (seeds / staging / prod)
-│   ├── profiles.yml             # DuckDB connection: ../weather.duckdb
+│   ├── profiles.yml             # DuckDB connection: $WEATHER_DB_PATH (.env), default ../weather.duckdb
 │   └── packages.yml             # dbt_utils
 ├── notebooks/weather.py         # marimo notebook
 ├── data/

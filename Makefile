@@ -1,4 +1,13 @@
-# dbt runs from dbt/, where its paths (../weather.duckdb, ../data) and profiles.yml are relative to.
+# Loads .env (WEATHER_DATA_DIR, see .env.example) into every uv run, also after cd dbt.
+# Also read here, for the paths make cleanup deletes.
+ifneq ($(wildcard .env),)
+include .env
+export UV_ENV_FILE := $(CURDIR)/.env
+endif
+DATA_DIR := $(or $(WEATHER_DATA_DIR),data)
+DB_PATH := $(or $(WEATHER_DB_PATH),weather.duckdb)
+
+# dbt runs from dbt/, where profiles.yml lives (and its fallback paths are relative to).
 DBT := cd dbt && uv run dbt
 
 # Extra dbt flags, e.g. make transform ARGS="--full-refresh" or ARGS="-s fct_weather_monthly"
@@ -33,8 +42,8 @@ orchestrate: dbt/dbt_packages
 
 # Keeps the .gitkeep files, which data/in and data/out need to exist.
 cleanup:
-	rm -rf .dagster weather.duckdb weather.duckdb.wal
-	find data/in data/out -mindepth 1 ! -name .gitkeep -delete
+	rm -rf .dagster $(DB_PATH) $(DB_PATH).wal
+	find $(DATA_DIR)/in $(DATA_DIR)/out -mindepth 1 ! -name .gitkeep -delete
 
 # Install dbt packages (dbt_utils) once, and again whenever packages.yml changes.
 dbt/dbt_packages: dbt/packages.yml

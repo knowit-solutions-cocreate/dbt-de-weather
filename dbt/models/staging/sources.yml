@@ -1,9 +1,9 @@
 sources:
   - name: ingest
-    description: Files written by the Dagster asset ingest/weather_daily_files (orchestrator/); the path is relative to dbt/, where dbt runs.
+    description: Files written by the Dagster asset ingest/weather_daily_files (orchestrator/) into $WEATHER_DATA_DIR/in (.env); without it ../data/in, relative to dbt/ where dbt runs.
     tables:
       - name: weather_daily_files
         description: Daily Open-Meteo weather, one file per city per month in data/in/<city>/<YYYY-MM>.parquet.
         config:
           meta:
-            external_location: "../data/in/*/*.parquet"
+            external_location: "{{ env_var('WEATHER_DATA_DIR', '../data') }}/in/*/*.parquet"

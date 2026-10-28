@@ -39,3 +39,6 @@ __marimo__
 # Dagster leftovers
 .dagster/
 orchestrator/
+
+# Local settings (template: .env.example)
+.env

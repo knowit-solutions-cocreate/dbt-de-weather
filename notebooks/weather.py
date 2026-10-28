@@ -6,17 +6,21 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
+    import os
+    from pathlib import Path
+
     import altair as alt
     import duckdb
     import marimo as mo
 
-    return alt, duckdb, mo
+    return Path, alt, duckdb, mo, os
 
 
 @app.cell
-def _(duckdb, mo):
+def _(Path, duckdb, mo, os):
     # In-memory DuckDB over the dbt outputs in data/out; weather.duckdb is never opened.
-    out_dir = mo.notebook_dir().parent / "data" / "out"
+    # WEATHER_DATA_DIR comes from .env (see .env.example), like in dbt and Dagster.
+    out_dir = Path(os.environ.get("WEATHER_DATA_DIR", mo.notebook_dir().parent / "data")) / "out"
     con = duckdb.connect(":memory:")
     for _view in ["monthly", "yearly"]:
         _path = out_dir / f"fct_weather_{_view}.parquet"

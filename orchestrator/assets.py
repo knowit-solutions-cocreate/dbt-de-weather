@@ -1,6 +1,7 @@
 """Dagster assets: the Open-Meteo ingestion, partitioned by month, the dbt project, and
 the notebook exported as an HTML report."""
 
+import os
 import subprocess
 import sys
 from datetime import datetime
@@ -15,7 +16,9 @@ from orchestrator.resources import OpenMeteoResource
 
 REPO_ROOT = Path(__file__).parent.parent
 NOTEBOOK = REPO_ROOT / "notebooks" / "weather.py"
-REPORT = REPO_ROOT / "data" / "report" / "weather.html"
+# Holds in/, out/ and report/; set in .env (see .env.example), defaults to data/ in the repo.
+DATA_DIR = Path(os.environ.get("WEATHER_DATA_DIR", REPO_ROOT / "data"))
+REPORT = DATA_DIR / "report" / "weather.html"
 
 dbt_project = DbtProject(project_dir=REPO_ROOT / "dbt")
 dbt_project.prepare_if_dev()  # parses the dbt project into target/manifest.json under `dagster dev`
