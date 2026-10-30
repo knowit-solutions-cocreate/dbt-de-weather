@@ -16,8 +16,8 @@ ARGS ?=
 help:
 	@echo "make ingest     Fetch weather into data/in   (YEAR=, MONTH=, CITY= optional)"
 	@echo "make transform  dbt build: staging -> prod, writes data/out   (ARGS= optional)"
-	@echo "make docs       Generate and serve the dbt docs   -> http://localhost:8080"
-	@echo "make viz        Run the marimo notebook as an app"
+	@echo "make docs       Generate static dbt docs   -> dbt/target/static_index.html"
+	@echo "make viz        Export the marimo notebook   -> data/report/weather.html"
 
 ingest:
 	uv run ingest_weather.py $(YEAR) $(MONTH) $(if $(CITY),--city $(CITY))
@@ -26,11 +26,11 @@ transform: dbt/dbt_packages
 	$(DBT) build $(DBT_FLAGS) $(ARGS)
 
 docs: dbt/dbt_packages
-	$(DBT) docs generate $(DBT_FLAGS)
-	$(DBT) docs serve $(DBT_FLAGS)
+	$(DBT) docs generate --static $(DBT_FLAGS)
+	@echo "Open dbt/target/static_index.html in a browser"
 
 viz:
-	uv run marimo run notebooks/weather.py
+	uv run marimo export html notebooks/weather.py -o data/report/weather.html --no-include-code
 
 # Install dbt packages (dbt_utils) once, and again whenever packages.yml changes.
 dbt/dbt_packages: dbt/packages.yml

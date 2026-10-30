@@ -28,22 +28,6 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.vstack(
-        [
-            mo.image(mo.notebook_dir() / "images" / "overview.png", height="30vh"),
-            mo.md("""
-            1. **Ingestion** of data from external sources
-            2. **Transformation** of data and **join** with internal data
-            3. **Outcome** visualization
-            """),
-        ],
-        align="center",
-    )
-    return
-
-
-@app.cell
-def _(mo):
     mo.hstack(
         [
             mo.vstack(
@@ -55,8 +39,8 @@ def _(mo):
                     Data can be stored on specific directories as parquet files,
                     partitioned by month.
                     - Collect only the partition interested in - Do not stress the API
-                    - Pre-defined paths based on use-case (i.e. cities)
-                    - bash script for execution
+                    - store data files under specific paths
+                    - execution by running the parameterized python script
                     """),
                 ]
             ),
@@ -84,7 +68,7 @@ def _(mo):
                     prod models are written back as parquet files.
                     - Staging - collect and normalize
                     - Production - aggregations and transformations
-                    - Data tests per column and across tables, unit tests for the logic
+                    - Data tests per column and across tables
                     - Metadata (descriptions, tests) versioned in git next to the SQL
                     """),
                 ]
@@ -103,9 +87,9 @@ def _(mo):
         [
             mo.vstack(
                 [
-                    mo.md("## Analysis/Visualization"),
+                    mo.md("## Serve"),
                     mo.md("""
-                    Using a Python based notebook to analyze and visualize the data.
+                    Using a Python based notebook to analyze and visualize the produced data.
                     """),
                 ]
             ),
@@ -113,6 +97,32 @@ def _(mo):
         ],
         align="center",
         widths=[3, 2],
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.hstack(
+        [
+            mo.vstack(
+                [
+                    mo.md("## Moving to Production"),
+                    mo.md("""
+                    Production requirements are defined based on the stakeholder needs (i.e. refresh rate).
+                    An orchestrator like Dagster can be used to materialize the project
+                    on a fixed schedule (i.e. daily/monthly).
+
+                    - **Ingestion**: modify python script to dagster asset logic with monthly partitions.
+                    - **Transformation**: Load dbt project into dagster
+                    - **Visualization**: Export static html to a new dir.
+                    """),
+                ]
+            ),
+            mo.image(mo.notebook_dir() / "images" / "dagster.png", width="100%"),
+        ],
+        align="center",
+        widths=[1, 1],
     )
     return
 

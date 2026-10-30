@@ -6,19 +6,22 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
+    import os
+    from pathlib import Path
+
     import altair as alt
     import marimo as mo
     import polars as pl
     from theme import city_scale, style
 
-    return alt, city_scale, mo, pl, style
+    return Path, alt, city_scale, mo, os, pl, style
 
 
 @app.cell
-def _(mo, pl):
-    monthly = pl.read_parquet(
-        mo.notebook_dir().parent / "data" / "out" / "fct_weather_monthly.parquet"
-    )
+def _(Path, mo, os, pl):
+    # WEATHER_DATA_DIR comes from .env (see .env.example), like in dbt and Dagster.
+    data_dir = Path(os.environ.get("WEATHER_DATA_DIR", mo.notebook_dir().parent / "data"))
+    monthly = pl.read_parquet(data_dir / "out" / "fct_weather_monthly.parquet")
     return (monthly,)
 
 
