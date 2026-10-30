@@ -1,4 +1,4 @@
-"""Ingestion partitions: one per month, each covering every city (data/in/<city>/<YYYY-MM>)."""
+"""Ingestion partitions: one per month, each covering every city (data/raw/<city>/<YYYY-MM>)."""
 
 from pathlib import Path
 
@@ -12,5 +12,5 @@ CITIES = {
     for row in pl.read_csv(CITIES_SEED).iter_rows(named=True)
 }
 
-# Keys like 2024-01, the file name in data/in; end_offset=1 adds the current month
+# Keys like 2024-01, the file name in data/raw; end_offset=1 adds the current month
 monthly = dg.MonthlyPartitionsDefinition(start_date="2024-01", fmt="%Y-%m", end_offset=1)

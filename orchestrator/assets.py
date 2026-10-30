@@ -16,7 +16,7 @@ from orchestrator.resources import OpenMeteoResource
 
 REPO_ROOT = Path(__file__).parent.parent
 NOTEBOOK = REPO_ROOT / "notebooks" / "weather.py"
-# Holds in/, out/ and report/; set in .env (see .env.example), defaults to data/ in the repo.
+# Holds raw/, stg/, prod/ and report/; set in .env (see .env.example), defaults to data/ in the repo.
 DATA_DIR = Path(os.environ.get("WEATHER_DATA_DIR", REPO_ROOT / "data"))
 REPORT = DATA_DIR / "report" / "weather.html"
 

@@ -18,12 +18,12 @@ def _():
 
 @app.cell
 def _(Path, duckdb, mo, os):
-    # In-memory DuckDB over the dbt outputs in data/out; weather.duckdb is never opened.
+    # In-memory DuckDB over the prod dbt outputs in data/prod; weather.duckdb is never opened.
     # WEATHER_DATA_DIR comes from .env (see .env.example), like in dbt and Dagster.
-    out_dir = Path(os.environ.get("WEATHER_DATA_DIR", mo.notebook_dir().parent / "data")) / "out"
+    prod_dir = Path(os.environ.get("WEATHER_DATA_DIR", mo.notebook_dir().parent / "data")) / "prod"
     con = duckdb.connect(":memory:")
     for _view in ["monthly", "yearly"]:
-        _path = out_dir / f"fct_weather_{_view}.parquet"
+        _path = prod_dir / f"fct_weather_{_view}.parquet"
         con.sql(f"create view {_view} as select * from read_parquet('{_path}')")
     return (con,)
 

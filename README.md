@@ -13,12 +13,12 @@ monthly and yearly figures.
 **Why save the API data as files?**
 
 dbt can be re-run without calling the API again. There's one file per city and month, so fetching
-a month again just overwrites that file, and the DuckDB database can always be rebuilt from `data/in`.
+a month again just overwrites that file, and the DuckDB database can always be rebuilt from `data/raw`.
 
 **Why are the staging models views?**
 
 Staging only renames columns and converts units, so there's no need to store a copy. A view always
-reads the current files in `data/in`.
+reads the current files in `data/raw`.
 
 **How is SQL executed?**
 
@@ -29,8 +29,8 @@ Two tools are used:
   - tests: checks on the data (unique ids, not null, monthly vs yearly totals)
 - **DuckDB**: an analytical database that runs in-process (no server)
 
-Since DuckDB reads and writes parquet natively, staging can query `data/in` directly and the prod
-models can be written straight to `data/out` as parquet.
+Since DuckDB reads and writes parquet natively, staging can query `data/raw` directly, and the staging and
+prod models are written straight to `data/stg` and `data/prod` as parquet.
 
 ## Tools
 
@@ -48,16 +48,16 @@ all dependencies on first use.
 ```bash
 git clone <repo-url> && cd dbt-de-weather
 
-make ingest      # 1. fetch this year's weather up to today  -> data/in/
-make transform   # 2. build and test the dbt models          -> weather.duckdb, data/out/
+make ingest      # 1. fetch this year's weather up to today  -> data/raw/
+make transform   # 2. build and test the dbt models          -> weather.duckdb, data/stg/, data/prod/
 make viz         # 3. open the notebook as an app             -> http://localhost:2718
 make docs        # optional: browse the dbt docs and lineage  -> http://localhost:8080
 ```
 
 In the Dagster UI, open the `weather` asset group, select all assets and click **Materialize**,
 choosing the months to fetch (e.g. 2025-01 up to the current month). That one run
-fetches the weather into `data/in/` (one partition per month from 2024, each fetching every city), builds and tests
-the dbt models (`weather.duckdb`, `data/out/`) and exports the notebook as a static HTML report to
+fetches the weather into `data/raw/` (one partition per month from 2024, each fetching every city), builds and tests
+the dbt models (`weather.duckdb`, `data/stg/`, `data/prod/`) and exports the notebook as a static HTML report to
 `data/report/weather.html` (latest year, no code). The `weather_monthly` job does the same for last
 month; its schedule (the 2nd of each month) is off until you switch it on.
 
@@ -70,26 +70,27 @@ make transform ARGS="--full-refresh"     # rebuild everything, e.g. after changi
 make transform ARGS="-s fct_weather_monthly"
 ```
 
-`make transform` runs dbt without Dagster, on whatever is in `data/in/`. Re-materializing a
+`make transform` runs dbt without Dagster, on whatever is in `data/raw/`. Re-materializing a
 partition overwrites its file; the next dbt build picks up only the new rows. To edit the notebook instead of viewing it: `uv run marimo edit notebooks/weather.py`.
 
 ## Repository structure
 
 ```
-├── orchestrator/                # Dagster: ingestion (Open-Meteo -> data/in), dbt, report, job
+├── orchestrator/                # Dagster: ingestion (Open-Meteo -> data/raw), dbt, report, job
 ├── dbt/                         # dbt project (dbt runs from this folder, see Makefile)
 │   ├── seeds/cities.csv         # cities with coordinates and attributes; also read by ingestion
 │   ├── models/
-│   │   ├── staging/             # stg_weather_daily (reads data/in), stg_cities: renaming, unit conversion, ids
-│   │   └── prod/                # fct_weather_monthly, fct_weather_yearly -> data/out/*.parquet
+│   │   ├── staging/             # stg_weather_daily (reads data/raw), stg_cities: renaming, unit conversion, ids -> data/stg/*.parquet
+│   │   └── prod/                # fct_weather_monthly, fct_weather_yearly -> data/prod/*.parquet
 │   ├── tests/                   # custom data tests (monthly vs yearly reconciliation)
-│   ├── macros/                  # schema naming (seeds / staging / prod)
+│   ├── macros/                  # schema naming (seeds / staging / prod), per-folder external_root
 │   ├── profiles.yml             # DuckDB connection: $WEATHER_DB_PATH (.env), default ../weather.duckdb
 │   └── packages.yml             # dbt_utils
 ├── notebooks/weather.py         # marimo notebook
 ├── data/
-│   ├── in/                      # ingested parquet (not committed)
-│   ├── out/                     # exported prod tables (not committed)
+│   ├── raw/                     # ingested parquet (not committed)
+│   ├── stg/                     # exported staging tables (not committed)
+│   ├── prod/                    # exported prod tables (not committed)
 │   └── report/                  # notebook exported as HTML by Dagster (not committed)
 ├── Makefile                     # orchestrate / transform / viz
 └── pyproject.toml               # dependencies, ruff config

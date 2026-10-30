@@ -1,6 +1,6 @@
 models:
   - name: fct_weather_monthly
-    description: Weather per city per calendar month, joined with city attributes. Rebuilt every run and written to data/out.
+    description: Weather per city per calendar month, joined with city attributes. Rebuilt every run and written to data/prod.
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
@@ -33,7 +33,7 @@ models:
         description: False for the current month and any month with missing days.
 
   - name: fct_weather_yearly
-    description: Weather per city per year, joined with city attributes. Rebuilt every run and written to data/out.
+    description: Weather per city per year, joined with city attributes. Rebuilt every run and written to data/prod.
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:

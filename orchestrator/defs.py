@@ -15,6 +15,6 @@ defs = dg.Definitions(
     resources={
         "dbt": DbtCliResource(project_dir=dbt_project),
         "open_meteo": OpenMeteoResource(),
-        "city_month_io_manager": CityMonthParquetIOManager(base_dir=str(DATA_DIR / "in")),
+        "city_month_io_manager": CityMonthParquetIOManager(base_dir=str(DATA_DIR / "raw")),
     },
 )

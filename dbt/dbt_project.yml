@@ -16,7 +16,9 @@ models:
         group: weather
     staging:
       +schema: staging
-      +materialized: view
+      # Written to <WEATHER_DATA_DIR>/stg/<model>.parquet (see macros/external_location.sql).
+      +materialized: external
+      +external_root: "{{ env_var('WEATHER_DATA_DIR', '../data') }}/stg"
     prod:
       +schema: prod
       # Rebuilt in full every run and written to <external_root>/<model>.parquet (see profiles.yml).
