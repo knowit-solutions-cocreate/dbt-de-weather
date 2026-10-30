@@ -40,7 +40,7 @@ DAILY_VARS = [
 ]
 
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
-OUT_DIR = Path("data/in")
+OUT_DIR = Path("data/raw")
 
 
 class DailyWeather(pa.DataFrameModel):

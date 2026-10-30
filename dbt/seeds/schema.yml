@@ -3,5 +3,5 @@ seeds:
     description: Static, illustrative city attributes (approximate values) joined onto the weather data.
     columns:
       - name: city
-        description: City key, matches the folder name in data/in.
+        description: City key, matches the folder name in data/raw.
         data_tests: [unique, not_null]

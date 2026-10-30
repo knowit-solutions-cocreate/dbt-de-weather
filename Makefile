@@ -11,13 +11,14 @@ CITY ?=
 # Extra dbt flags, e.g. make transform ARGS="--full-refresh" or ARGS="-s fct_weather_monthly"
 ARGS ?=
 
-.PHONY: help ingest transform docs viz
+.PHONY: help ingest transform docs viz cleanup
 
 help:
-	@echo "make ingest     Fetch weather into data/in   (YEAR=, MONTH=, CITY= optional)"
-	@echo "make transform  dbt build: staging -> prod, writes data/out   (ARGS= optional)"
+	@echo "make ingest     Fetch weather into data/raw   (YEAR=, MONTH=, CITY= optional)"
+	@echo "make transform  dbt build: staging -> prod, writes data/prod   (ARGS= optional)"
 	@echo "make docs       Generate static dbt docs   -> dbt/target/static_index.html"
 	@echo "make viz        Export the marimo notebook   -> data/report/weather.html"
+	@echo "make cleanup    Delete the parquet files in data/raw, data/stg, data/prod and weather.duckdb"
 
 ingest:
 	uv run ingest_weather.py $(YEAR) $(MONTH) $(if $(CITY),--city $(CITY))
@@ -31,6 +32,10 @@ docs: dbt/dbt_packages
 
 viz:
 	uv run marimo export html notebooks/weather.py -o data/report/weather.html --no-include-code
+
+# Keeps the folders and their .gitkeep (the * glob skips dotfiles).
+cleanup:
+	rm -rf data/raw/* data/stg/* data/prod/* weather.duckdb*
 
 # Install dbt packages (dbt_utils) once, and again whenever packages.yml changes.
 dbt/dbt_packages: dbt/packages.yml

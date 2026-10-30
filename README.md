@@ -10,12 +10,12 @@ monthly and yearly figures.
 **Why save the API data as files?**
 
 dbt can be re-run without calling the API again. There's one file per city and month, so fetching
-a month again just overwrites that file, and the DuckDB database can always be rebuilt from `data/in`.
+a month again just overwrites that file, and the DuckDB database can always be rebuilt from `data/raw`.
 
-**Why are the staging models views?**
+**Why are the staging models written as files?**
 
-Staging only renames columns and converts units, so there's no need to store a copy. A view always
-reads the current files in `data/in`.
+Each layer is a folder of parquet files (`data/raw` -> `data/stg` -> `data/prod`), so every step's
+output can be opened and inspected directly, without going through the DuckDB database.
 
 **How is SQL executed?**
 
@@ -26,8 +26,8 @@ Two tools are used:
   - tests: checks on the data (unique ids, not null, monthly vs yearly totals)
 - **DuckDB**: an analytical database that runs in-process (no server)
 
-Since DuckDB reads and writes parquet natively, staging can query `data/in` directly and the prod
-models can be written straight to `data/out` as parquet.
+Since DuckDB reads and writes parquet natively, staging can query `data/raw` directly and the prod
+models can be written straight to `data/prod` as parquet.
 
 ## Tools
 
@@ -45,8 +45,8 @@ all dependencies on first use.
 ```bash
 git clone <repo-url> && cd dbt-de-weather
 
-make ingest      # 1. fetch this year's weather up to today  -> data/in/
-make transform   # 2. build and test the dbt models          -> weather.duckdb, data/out/
+make ingest      # 1. fetch this year's weather up to today  -> data/raw/
+make transform   # 2. build and test the dbt models          -> weather.duckdb, data/prod/
 make viz         # 3. open the notebook as an app             -> http://localhost:2718
 make docs        # optional: browse the dbt docs and lineage  -> http://localhost:8080
 ```
@@ -70,20 +70,21 @@ directly. To edit the notebook instead of viewing it: `uv run marimo edit notebo
 ## Repository structure
 
 ```
-├── ingest_weather.py            # ingestion: Open-Meteo -> data/in/<city>/<YYYY-MM>.parquet
+├── ingest_weather.py            # ingestion: Open-Meteo -> data/raw/<city>/<YYYY-MM>.parquet
 ├── dbt/                         # dbt project (run from the repo root, see Makefile)
 │   ├── seeds/cities.csv         # cities with coordinates and attributes; also read by ingestion
 │   ├── models/
-│   │   ├── staging/             # stg_weather_daily (reads data/in), stg_cities: renaming, unit conversion, ids
-│   │   └── prod/                # fct_weather_monthly, fct_weather_yearly -> data/out/*.parquet
+│   │   ├── staging/             # stg_weather_daily (reads data/raw), stg_cities: renaming, unit conversion, ids
+│   │   └── prod/                # fct_weather_monthly, fct_weather_yearly -> data/prod/*.parquet
 │   ├── tests/                   # custom data tests (monthly vs yearly reconciliation)
 │   ├── macros/                  # schema naming (seeds / staging / prod)
 │   ├── profiles.yml             # DuckDB connection: ./weather.duckdb
 │   └── packages.yml             # dbt_utils
 ├── notebooks/weather.py         # marimo notebook
 ├── data/
-│   ├── in/                      # ingested parquet (not committed)
-│   └── out/                     # exported prod tables (not committed)
+│   ├── raw/                     # ingested parquet (not committed)
+│   ├── stg/                     # staging tables as parquet (not committed)
+│   └── prod/                    # exported prod tables (not committed)
 ├── Makefile                     # ingest / transform / viz
 └── pyproject.toml               # dependencies, ruff config
 ```

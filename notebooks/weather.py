@@ -21,7 +21,7 @@ def _():
 def _(Path, mo, os, pl):
     # WEATHER_DATA_DIR comes from .env (see .env.example), like in dbt and Dagster.
     data_dir = Path(os.environ.get("WEATHER_DATA_DIR", mo.notebook_dir().parent / "data"))
-    monthly = pl.read_parquet(data_dir / "out" / "fct_weather_monthly.parquet")
+    monthly = pl.read_parquet(data_dir / "prod" / "fct_weather_monthly.parquet")
     return (monthly,)
 
 

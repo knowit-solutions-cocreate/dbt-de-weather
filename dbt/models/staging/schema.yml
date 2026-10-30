@@ -1,6 +1,6 @@
 models:
   - name: stg_weather_daily
-    description: Daily weather per city from data/in, renamed and unit-converted (sunshine in hours).
+    description: Daily weather per city from data/raw, renamed and unit-converted (sunshine in hours).
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:

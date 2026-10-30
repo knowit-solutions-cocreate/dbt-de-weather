@@ -64,8 +64,7 @@ def _(mo):
                     with internal data (i.e. cities metadata).
                     The SQL runs in-process with DuckDB - no database server.
 
-                    Staging models are views over the raw parquet files,
-                    prod models are written back as parquet files.
+                    Staging and prod models are written back as parquet files.
                     - Staging - collect and normalize
                     - Production - aggregations and transformations
                     - Data tests per column and across tables

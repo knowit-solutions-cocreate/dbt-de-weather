@@ -6,14 +6,15 @@ model-paths: ["models"]
 seed-paths: ["seeds"]
 macro-paths: ["macros"]
 
-# Paths (data/in, data/out) are relative to the repo root: run dbt from there with
+# Paths (data/raw, data/stg, data/prod) are relative to the repo root: run dbt from there with
 # --project-dir dbt --profiles-dir dbt.
 
 models:
   weather:
     staging:
       +schema: staging
-      +materialized: view
+      +materialized: external
+      +external_root: data/stg
     prod:
       +schema: prod
       # Rebuilt in full every run and written to <external_root>/<model>.parquet (see profiles.yml).

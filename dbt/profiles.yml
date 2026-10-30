@@ -5,4 +5,4 @@ weather:
       type: duckdb
       path: weather.duckdb
       schema: main
-      external_root: data/out
+      external_root: data/prod
